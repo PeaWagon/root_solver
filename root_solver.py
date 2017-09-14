@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 import random
+import sys
 #from copy import deepcopy
 from operator import itemgetter
+
 
 
 
@@ -14,12 +16,13 @@ class RootSolver(object):
         and have a single dependent variable
         i.e. y = f(x)
     """
-    def __init__(self, equation, POP_SIZE=10, LEFT_BOUND=-1000, RIGHT_BOUND=1000, ERROR=10e-6, T_SIZE=7, MNM=3, FLIP_CHANCE=0):
+    def __init__(self, equation, POP_SIZE=10, LEFT_BOUND=-1000, RIGHT_BOUND=1000, ERROR=10e-6, T_SIZE=7, MNM=3, FLIP_CHANCE=0.5):
         # note the equation can be a lambda equation:
         # example: lambda x: x**2 - 5
         # right now, input equation as a string
         # i.e. use:
         # "x**2 - 5"
+        # left and right bounds should be integers
 
         self.equation = equation
         self.POP_SIZE = POP_SIZE
@@ -27,6 +30,7 @@ class RootSolver(object):
         self.RIGHT_BOUND = RIGHT_BOUND
         self.ERROR = ERROR
         self.error_length = self.get_error_length()
+        self.value_length = self.get_value_length()
         self.roots = []
         self.MNM = MNM
         print('equation:', self.equation)
@@ -36,6 +40,23 @@ class RootSolver(object):
         self.T_SIZE = T_SIZE
         self.FLIP_CHANCE = FLIP_CHANCE
 
+
+    def get_value_length(self):
+        """ checks the bounds (make sure they are integers)
+            also determines how big the numbers should be
+            prior to the decimal point
+        """
+        try:
+            self.LEFT_BOUND = int(self.LEFT_BOUND)
+            self.RIGHT_BOUND = int(self.RIGHT_BOUND)
+        except ValueError:
+            sys.exit("ERROR: The left and right bounds must be intergers.")
+        else:
+            # plus 1 for space for +/-
+            s = max(len(str(abs(self.LEFT_BOUND))), \
+                len(str(abs(self.RIGHT_BOUND))))+1
+            print('length:', s)
+            return s
 
     def parse_equation(self):
         """ turns equation string into a useable function
@@ -114,6 +135,17 @@ class RootSolver(object):
                 pmem = str(pmem)+'.'
                 for i in range(self.error_length):
                     pmem+=str(random.randint(0,9))
+            # add '-' placeholder
+            if pmem[0] != '-':
+                pmem = '+'+pmem
+            # add '0' placeholders
+            while len(pmem[:pmem.index('.')]) != self.value_length:
+                if pmem[0] == '-':
+                    pmem = '-0'+pmem[1:]
+                else:
+                    pmem = '+0'+pmem[1:]
+            
+
             self.population.append(pmem)
         print('population:', self.population)
         return self.population
@@ -270,14 +302,17 @@ class RootSolver(object):
         
         while True:
             for l in m_loc:
-                # if the chosen location is the first part of the parent
-                # and that parent is a negative number
-                if parent_value[l] == '-':
+                if not l:
                     chance = random.randint(1,100)
                     if chance <= self.FLIP_CHANCE*100:
-                        new_value = ' '
-                    else:
+                        if parent_value[0] == '-':
+                            new_value = '+'
+                        else:
+                            new_value = '-'
+                    elif parent_value[l] == '-':
                         new_value = '-'
+                    else:
+                        new_value = '+'
                 else:
                     new_value = str(random.randint(0,9))
                 child_value = child_value[:l]+new_value+child_value[l+1:]
@@ -303,18 +338,22 @@ class RootSolver(object):
 
 
 if __name__ == '__main__':
+    # TODO strip zeros or perhaps keep zeros as palceholders ?
+    # Actually: this is a problem. The size of the "gene" cannot increase
+    # it can only decrease, which helps the program to get stuck.
+    # need to add zeros as placeholders.
+    # solution: write a function to determine the maximum length of
+    # the number prior to the decimal point (this will be determined by the
+    # bounds
     # mevs=mating events, aka how long the program will run
-    MEVS = 1
+    MEVS = 10000
     # initialise RootSolver object
-    test2 = RootSolver("y**2+7*y-10", POP_SIZE=30, MNM=10, ERROR=0.001, T_SIZE=7)
+    test2 = RootSolver("y**2+7*y-10", POP_SIZE=30, MNM=5, ERROR=0.000001, T_SIZE=7)
     # run over mevs
     for _ in range(MEVS):
-
         t = test2.tournament()      # choose tourney members
         r = test2.eval_fitness(t)   # eval fitnesses for tourney members
         test2.replace(r)         # swap worst tourney for best parents' children
-    # TODO right now the variable has to be x
-    # if it is not x, the eval_fitness function will fail
 
 
 
