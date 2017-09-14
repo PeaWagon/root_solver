@@ -46,6 +46,9 @@ class RootSolver(object):
             the equation should have a single variable
             (for now, anyway - this should be easy to fix
             later)
+            
+            add feature to change all variables to x (only
+            if there is a single variable)
         """
         variables = []
         powers = []
@@ -60,7 +63,22 @@ class RootSolver(object):
                 variables.append(c)
         print('variables:', variables)
         print('powers:', powers)  
-    
+        
+        all_same = True
+        if variables:
+            first = ord(variables[0])
+            for v in variables:
+                if ord(v) != first:
+                    all_same = False
+        else:
+            first = 120
+        # if they are all the same letter and not equal to 'x'
+        if all_same and first != 120:
+            self.equation = self.equation.replace(variables[0], 'x')
+        print('new equation:', self.equation)
+                    
+
+
     def test_eval(self):
         """ test python's eval function with string function
             as input
@@ -282,9 +300,9 @@ class RootSolver(object):
 
 if __name__ == '__main__':
     # mevs=mating events, aka how long the program will run
-    MEVS = 10000
+    MEVS = 1
     # initialise RootSolver object
-    test2 = RootSolver("x**2+7*x-10", POP_SIZE=30, MNM=10, ERROR=10e-10, T_SIZE=7)
+    test2 = RootSolver("y**2+7*y-10", POP_SIZE=30, MNM=10, ERROR=10e-10, T_SIZE=7)
     # run over mevs
     for _ in range(MEVS):
         t = test2.tournament()      # choose tourney members
