@@ -121,14 +121,18 @@ class RootSolver(object):
     def get_error_length(self):
         """ finds out the size of the error (as a string)
         """
-        print(float(self.ERROR))
+        if self.ERROR >= 1 or self.ERROR <= 0:
+            raise ValueError("The error value should be in the range (0,1).")
         str_er = str(self.ERROR)
-        # TODO: replace with try accept loop in case
-        # error is in a format that isn't scientific notation
-        meow = str_er.index('e')
-        decimal_places = int(str_er[meow+2:])
-        print("decimal places", decimal_places)
-        return decimal_places
+        try:
+            meow = str_er.index('e')
+        except ValueError:
+            decimal = str_er.index('.')
+            meow = len(str_er[decimal+1:])
+            return meow
+        else:
+            decimal_places = int(str_er[meow+2:])
+            return decimal_places
 
     def tournament(self):
         """ tournament selection to determine
@@ -302,9 +306,10 @@ if __name__ == '__main__':
     # mevs=mating events, aka how long the program will run
     MEVS = 1
     # initialise RootSolver object
-    test2 = RootSolver("y**2+7*y-10", POP_SIZE=30, MNM=10, ERROR=10e-10, T_SIZE=7)
+    test2 = RootSolver("y**2+7*y-10", POP_SIZE=30, MNM=10, ERROR=0.001, T_SIZE=7)
     # run over mevs
     for _ in range(MEVS):
+
         t = test2.tournament()      # choose tourney members
         r = test2.eval_fitness(t)   # eval fitnesses for tourney members
         test2.replace(r)         # swap worst tourney for best parents' children
