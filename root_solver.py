@@ -6,6 +6,8 @@ import sys
 from operator import itemgetter
 
 
+#TODO: should make the number of decimal places
+# different than the error
 
 
 class RootSolver(object):
@@ -16,14 +18,14 @@ class RootSolver(object):
         and have a single dependent variable
         i.e. y = f(x)
     """
-    def __init__(self, equation, POP_SIZE=10, LEFT_BOUND=-1000, RIGHT_BOUND=1000, ERROR=10e-6, T_SIZE=7, MNM=3, FLIP_CHANCE=0.5):
+    def __init__(self, equation, POP_SIZE=10, LEFT_BOUND=-1000, RIGHT_BOUND=1000, ERROR=10e-6, T_SIZE=7, MNM=3, FLIP_CHANCE=0.5, VERBOSE=True, SIGNIFICANCE=1):
         # note the equation can be a lambda equation:
         # example: lambda x: x**2 - 5
         # right now, input equation as a string
         # i.e. use:
         # "x**2 - 5"
         # left and right bounds should be integers
-
+        self.VERBOSE = VERBOSE
         self.equation = equation
         self.POP_SIZE = POP_SIZE
         self.LEFT_BOUND = LEFT_BOUND
@@ -33,14 +35,21 @@ class RootSolver(object):
         self.value_length = self.get_value_length()
         self.roots = []
         self.MNM = MNM
-        print('equation:', self.equation)
-        print('population size:', self.POP_SIZE)
         self.population = self.generate_population()
         self.MAX_ROOTS = self.parse_equation()
         self.T_SIZE = T_SIZE
         self.FLIP_CHANCE = FLIP_CHANCE
+        # significance for determinining roots
+        self.SIG = SIGNIFICANCE
 
-
+    def v_print(self, things):
+        """ verbose print if self.VERBOSE is set to True
+            things should be a tuple
+        """
+        if self.VERBOSE:
+            for thing in things:
+                print(thing)
+    
     def get_value_length(self):
         """ checks the bounds (make sure they are integers)
             also determines how big the numbers should be
@@ -53,9 +62,8 @@ class RootSolver(object):
             sys.exit("ERROR: The left and right bounds must be intergers.")
         else:
             # plus 1 for space for +/-
-            s = max(len(str(abs(self.LEFT_BOUND))), \
-                len(str(abs(self.RIGHT_BOUND))))+1
-            print('length:', s)
+            s = max(len(str(abs(self.LEFT_BOUND))), 
+                    len(str(abs(self.RIGHT_BOUND))))+1
             return s
 
     def parse_equation(self):
@@ -83,10 +91,7 @@ class RootSolver(object):
             elif c == '*':
                 p+='*'
             elif c.isalpha():
-                variables.append(c)
-        print('variables:', variables)
-        print('powers:', powers)  
-        
+                variables.append(c)  
         all_same = True
         if variables:
             first = ord(variables[0])
@@ -98,7 +103,6 @@ class RootSolver(object):
         # if they are all the same letter and not equal to 'x'
         if all_same and first != 120:
             self.equation = self.equation.replace(variables[0], 'x')
-        print('new equation:', self.equation)
         return max(powers)
 
     def generate_population(self):
@@ -135,7 +139,7 @@ class RootSolver(object):
             
 
             self.population.append(pmem)
-        print('population:', self.population)
+        self.v_print(('population:', self.population))
         return self.population
 
     def get_error_length(self):
@@ -158,6 +162,8 @@ class RootSolver(object):
         """ tournament selection to determine
             which pmems to evaluate
         """
+        if self.T_SIZE > self.POP_SIZE:
+            raise ValueError("The tournament size cannot be larger than the population size.")
         tourney = []
         for _ in range(self.T_SIZE):
             while True:
@@ -182,7 +188,7 @@ class RootSolver(object):
             results.append([pmem, x, y, abs(y)])
         
         results = sorted(results, key=itemgetter(3))
-        
+
         return results
 
     def new_eval_fitness(self, ty):
@@ -320,14 +326,13 @@ class RootSolver(object):
 
         self.population[t_data[-1][0]] = child1
         self.population[t_data[-2][0]] = child2
-        
         # check to see if any of the children/parents are roots
-        #self.check_root(t_data[0][0])
-        #self.check_root(t_data[1][0])
-        #self.check_root(t_data[-1][0])
-        #self.check_root(t_data[-2][0])
-        
-        print('\nnew population:', self.population)
+        for i in (0,1,-1,-2):
+            x = float(self.population[t_data[i][0]])
+            result = eval(self.equation)
+            if -self.ERROR <= result <= self.ERROR:
+                self.check_root(t_data[i][0])
+        self.v_print(('\nnew population:', self.population))
         
     def check_root(self, pmem):
         """ see if the given population member is within
@@ -342,38 +347,43 @@ class RootSolver(object):
         """
         x = float(self.population[pmem])
         result = eval(self.equation)
-        print(result)
-        print(self.ERROR)
-        # check if root
-        if -self.ERROR <= result <= self.ERROR:
-            print('here')
-            if len(self.roots) < self.MAX_ROOTS:
-                # add root
-                self.roots.append(x)
-            # if self.roots is non-empty
-            else:
-                # check if root is better
-                # and also that root is not significantly different
-                # from other roots (i.e. don't want multiple of the
-                # same root)
-                for i, rt in enumerate(self.roots):
-                    x = rt
-                    old_result = eval(self.equation)
-                    if result < old_result:
-                        self.roots[i] = result
+        
+        # if no roots have been found yet
+        if not self.roots:
+            self.roots.append(x)
+            return
 
+        # if self.roots is non-empty
+        # check if root is better
+        # and also that root is not significantly different
+        # from other roots (i.e. don't want multiple of the
+        # same root)
+        for i, rt in enumerate(self.roots):
+            x = rt
+            old_result = eval(self.equation)
+            if rt-self.SIG <= float(self.population[pmem]) <= rt+self.SIG:
+                if result < old_result:
+                    self.roots[i] = float(self.population[pmem])
+                    return
+            elif len(self.roots) < self.MAX_ROOTS:
+                if float(self.population[pmem]) != rt:
+                # add root
+                    self.roots.append(float(self.population[pmem]))
+                    return
 
 if __name__ == '__main__':
     # mevs=mating events, aka how long the program will run
     MEVS = 10000
+    # or you can call the function until some bound has been reached
     # initialise RootSolver object
-    test2 = RootSolver("y**2+7*y-10", POP_SIZE=10, MNM=5, ERROR=0.0001, T_SIZE=7)
+    test2 = RootSolver("y**2+7*y-10", VERBOSE=False, POP_SIZE=15, MNM=5, ERROR=0.0001, T_SIZE=7)
     # run over mevs
     for _ in range(MEVS):
         t = test2.tournament()      # choose tourney members
         r = test2.eval_fitness(t)   # eval fitnesses for tourney members
         test2.replace(r)         # swap worst tourney for best parents' children
-    print(test2.roots)
+        #print(test2.roots)
+    print('\n', test2.roots, sep='')
 
 
 
