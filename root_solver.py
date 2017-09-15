@@ -36,7 +36,7 @@ class RootSolver(object):
         print('equation:', self.equation)
         print('population size:', self.POP_SIZE)
         self.population = self.generate_population()
-        self.equation_info = self.parse_equation()
+        self.MAX_ROOTS = self.parse_equation()
         self.T_SIZE = T_SIZE
         self.FLIP_CHANCE = FLIP_CHANCE
 
@@ -61,6 +61,8 @@ class RootSolver(object):
     def parse_equation(self):
         """ turns equation string into a useable function
         
+            returns the maximum power value
+        
             the equation should have simple exponents
             i.e. no bracketed exponents
             
@@ -76,7 +78,7 @@ class RootSolver(object):
         p = ''
         for c in self.equation:
             if p == '**':
-                powers.append(c)
+                powers.append(int(c))
                 p = ''
             elif c == '*':
                 p+='*'
@@ -97,21 +99,7 @@ class RootSolver(object):
         if all_same and first != 120:
             self.equation = self.equation.replace(variables[0], 'x')
         print('new equation:', self.equation)
-                    
-
-
-    def test_eval(self):
-        """ test python's eval function with string function
-            as input
-        """
-        x = self.LEFT_BOUND
-        print(eval(self.equation))
-    
-    def num_roots(self):
-        """ determine the expected number of roots based on the
-            input equation
-        """
-        MAX_ROOTS = 10
+        return max(powers)
 
     def generate_population(self):
         """ generates a population of possible roots
@@ -333,31 +321,62 @@ class RootSolver(object):
         self.population[t_data[-1][0]] = child1
         self.population[t_data[-2][0]] = child2
         
+        # check to see if any of the children/parents are roots
+        #self.check_root(t_data[0][0])
+        #self.check_root(t_data[1][0])
+        #self.check_root(t_data[-1][0])
+        #self.check_root(t_data[-2][0])
+        
         print('\nnew population:', self.population)
         
+    def check_root(self, pmem):
+        """ see if the given population member is within
+            ERROR of being a root. if yes, add to self.roots
+            
+            note: should also check to see if it is an improvement
+            to the current roots (if there are any)
+            
+            first should make it check if max roots is satisfied
+            
+            working here
+        """
+        x = float(self.population[pmem])
+        result = eval(self.equation)
+        print(result)
+        print(self.ERROR)
+        # check if root
+        if -self.ERROR <= result <= self.ERROR:
+            print('here')
+            if len(self.roots) < self.MAX_ROOTS:
+                # add root
+                self.roots.append(x)
+            # if self.roots is non-empty
+            else:
+                # check if root is better
+                # and also that root is not significantly different
+                # from other roots (i.e. don't want multiple of the
+                # same root)
+                for i, rt in enumerate(self.roots):
+                    x = rt
+                    old_result = eval(self.equation)
+                    if result < old_result:
+                        self.roots[i] = result
 
 
 if __name__ == '__main__':
-    # TODO strip zeros or perhaps keep zeros as palceholders ?
-    # Actually: this is a problem. The size of the "gene" cannot increase
-    # it can only decrease, which helps the program to get stuck.
-    # need to add zeros as placeholders.
-    # solution: write a function to determine the maximum length of
-    # the number prior to the decimal point (this will be determined by the
-    # bounds
     # mevs=mating events, aka how long the program will run
     MEVS = 10000
     # initialise RootSolver object
-    test2 = RootSolver("y**2+7*y-10", POP_SIZE=30, MNM=5, ERROR=0.000001, T_SIZE=7)
+    test2 = RootSolver("y**2+7*y-10", POP_SIZE=10, MNM=5, ERROR=0.0001, T_SIZE=7)
     # run over mevs
     for _ in range(MEVS):
         t = test2.tournament()      # choose tourney members
         r = test2.eval_fitness(t)   # eval fitnesses for tourney members
         test2.replace(r)         # swap worst tourney for best parents' children
+    print(test2.roots)
 
 
 
 
 
 
-        
